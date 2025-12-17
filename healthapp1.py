@@ -99,7 +99,6 @@ with tabs[0]:
         submit = st.form_submit_button("Analyze")
 
     if submit:
-        # ---- DERIVED FEATURES ----
         age_group = 0 if age < 30 else 1 if age < 45 else 2 if age < 60 else 3
         bmi_category = 0 if bmi < 18.5 else 1 if bmi < 25 else 2 if bmi < 30 else 3
         bp_category = 0 if (sbp < 120 and dbp < 80) else 1 if (sbp < 140 or dbp < 90) else 2
@@ -122,10 +121,8 @@ with tabs[0]:
 
         X = df[FEATURE_ORDER].values
 
-        # ---- LOS ----
         los_days = round(float(los_model.predict(los_scaler.transform(X))[0]),2)
 
-        # ---- CLUSTER ----
         cluster_id = int(kmeans.predict(cluster_scaler.transform(X))[0])
         cluster_text = {
             0:"Low Risk Cluster – Stable vitals",
@@ -133,7 +130,6 @@ with tabs[0]:
             2:"High Risk Cluster – Critical condition"
         }[cluster_id]
 
-        # ---- DISEASE (HYBRID FIX) ----
         probs = xgb_model.predict(xgb.DMatrix(X))[0]
         ml_risk = ["LOW","MEDIUM","HIGH"][int(np.argmax(probs))]
 
@@ -144,12 +140,12 @@ with tabs[0]:
         else:
             disease_risk = ml_risk
 
-        # ---- OUTPUT ----
         st.success(f"🕒 Predicted LOS: {los_days} days")
         st.info(f"🧩 Patient Cluster: {cluster_text}")
         st.warning(f"⚠️ Disease Risk Level: {disease_risk}")
 
-        # ---- ASSOCIATION RULES (INPUT BASED) ----
+        st.subheader("📌 Patient-Specific Association Insights")
+
         filtered = []
         for r in association_rules:
             ants = " ".join(r["antecedents"]).lower()
@@ -167,13 +163,11 @@ with tabs[0]:
         assoc_df["antecedents"] = assoc_df["antecedents"].apply(lambda x:", ".join(x))
         assoc_df["consequents"] = assoc_df["consequents"].apply(lambda x:", ".join(x))
 
-        st.subheader("📌 Patient-Specific Association Insights")
         st.dataframe(
             assoc_df[["antecedents","consequents","support","confidence","lift"]].head(5),
             use_container_width=True
         )
 
-        # ---- DOWNLOAD REPORT ----
         report = df.copy()
         report["LOS_days"] = los_days
         report["Cluster"] = cluster_text
@@ -187,7 +181,7 @@ with tabs[0]:
         )
 
 # =========================================================
-# TAB 2 – X-RAY → RAG
+# TAB 2 – X-RAY DETECTION
 # =========================================================
 with tabs[1]:
     st.subheader("🩻 X-ray Detection")
@@ -213,7 +207,7 @@ with tabs[1]:
 # TAB 3 – MEDICAL RAG
 # =========================================================
 with tabs[2]:
-    lang = st.selectbox("Language",LANGUAGES)
+    lang = st.selectbox("Language",LANGUAGES,key="rag_lang")
     q = st.text_input("Ask a medical question")
     if q:
         r = client.chat.completions.create(
@@ -226,7 +220,7 @@ with tabs[2]:
 # TAB 4 – SENTIMENT
 # =========================================================
 with tabs[3]:
-    lang = st.selectbox("Language",LANGUAGES)
+    lang = st.selectbox("Language",LANGUAGES,key="sentiment_lang")
     txt = st.text_area("Clinical Notes")
     if txt:
         r = client.chat.completions.create(
@@ -240,7 +234,7 @@ with tabs[3]:
 # =========================================================
 with tabs[4]:
     text = st.text_input("Text")
-    tgt = st.selectbox("Translate to",LANGUAGES)
+    tgt = st.selectbox("Translate to",LANGUAGES,key="translator_lang")
     if text:
         r = client.chat.completions.create(
             model="llama-3.1-8b-instant",
@@ -262,6 +256,8 @@ with tabs[5]:
 ✔ Multilingual medical intelligence  
 ✔ Deployment ready
 """)
+
+
 
 
 
