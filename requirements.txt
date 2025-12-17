@@ -29,3 +29,6 @@ opencv-python-headless
 # LLM Integration
 # ===============================
 groq
+
+## hugging face 
+huggingface-hub
