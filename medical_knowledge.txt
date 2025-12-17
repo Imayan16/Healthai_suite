@@ -1,0 +1,144 @@
+===============================================
+1) DIABETES MELLITUS TYPE 2
+===============================================
+Overview:
+Diabetes Mellitus Type 2 is a chronic metabolic disorder where the body becomes resistant to insulin or does not produce enough insulin.
+
+Symptoms:
+• Frequent urination
+• Excessive thirst
+• Fatigue
+• Blurred vision
+• Slow wound healing
+
+Risk Factors:
+• Obesity
+• Family history
+• Sedentary lifestyle
+• Poor diet
+
+Diagnosis:
+• Fasting blood glucose
+• Oral glucose tolerance test
+• HbA1c test
+
+Treatment:
+• Lifestyle modification
+• Metformin
+• Insulin therapy in advanced cases
+
+Complications:
+• Neuropathy
+• Kidney disease
+• Eye damage (retinopathy)
+
+
+===============================================
+2) HYPERTENSION
+===============================================
+Overview:
+Hypertension is chronically elevated blood pressure, usually above 140/90 mmHg.
+
+Symptoms:
+• Headache
+• Dizziness
+• Vision problems
+• Nosebleeds (rare)
+
+Risk Factors:
+• High salt intake
+• Stress
+• Smoking
+• Obesity
+
+Diagnosis:
+• Blood pressure measurement
+• ABPM (Ambulatory BP Monitoring)
+
+Treatment:
+• ACE inhibitors
+• Beta-blockers
+• Lifestyle changes
+
+
+===============================================
+3) CORONARY ARTERY DISEASE (HEART DISEASE)
+===============================================
+Overview:
+Heart disease occurs when coronary arteries become blocked or narrowed due to plaque buildup.
+
+Symptoms:
+• Chest pain (angina)
+• Shortness of breath
+• Fatigue
+• Palpitations
+
+Risk Factors:
+• High cholesterol
+• Hypertension
+• Smoking
+• Diabetes
+
+Diagnosis:
+• ECG
+• Echocardiogram
+• Coronary angiography
+
+Treatment:
+• Antiplatelets (Aspirin)
+• Statins
+• Angioplasty or bypass surgery in severe cases
+
+
+===============================================
+4) PNEUMONIA
+===============================================
+Overview:
+Pneumonia is an infection that inflames the air sacs in the lungs.
+
+Symptoms:
+• Fever
+• Productive cough
+• Chest pain
+• Difficulty breathing
+
+Risk Factors:
+• Smoking
+• Chronic lung disease
+• Low immunity
+
+Diagnosis:
+• Chest X-ray
+• CBC blood test
+
+Treatment:
+• Antibiotics
+• Oxygen support
+• Rest and hydration
+
+
+===============================================
+5) CHRONIC KIDNEY DISEASE (CKD)
+===============================================
+Overview:
+CKD is gradual loss of kidney function lasting more than 3 months.
+
+Symptoms:
+• Swollen feet
+• Fatigue
+• Nausea
+• Reduced urine output
+
+Risk Factors:
+• Diabetes
+• Hypertension
+• Family history
+
+Diagnosis:
+• eGFR test
+• Urine albumin
+
+Treatment:
+• BP control medication
+• Dialysis in advanced stages
+• Kidney transplant (end stage)
