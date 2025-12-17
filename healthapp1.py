@@ -28,40 +28,55 @@ st.title("🧠 HealthAI – Multilingual Clinical AI System")
 st.caption("Clinical ML • X-ray Analysis • Medical RAG • Sentiment • Translator")
 
 # =========================================================
-# LOAD MODELS FROM HUGGINGFACE
+# CONSTANTS
+# =========================================================
+REPO_ID = "imayan/healthai_models"
+
+FEATURE_ORDER = [
+    "age",
+    "gender",
+    "bmi",
+    "systolic_bp",
+    "diastolic_bp",
+    "heart_rate",
+    "cholesterol",
+    "blood_sugar",
+    "age_group",
+    "bmi_category",
+    "bp_category",
+    "metabolic_risk"
+]
+
+LANGUAGES = [
+    "English", "Tamil", "Hindi", "Telugu", "Malayalam",
+    "Kannada", "Bengali", "Spanish", "French", "German"
+]
+
+# =========================================================
+# LOAD MODELS (HF)
 # =========================================================
 @st.cache_resource
 def load_models():
-    repo = "imayan/healthai_models"
+    los_model = joblib.load(hf_hub_download(REPO_ID, "los_model.pkl", token=HF_TOKEN))
+    los_scaler = joblib.load(hf_hub_download(REPO_ID, "los_scaler.pkl", token=HF_TOKEN))
 
-    los_model = joblib.load(hf_hub_download(repo, "los_model.pkl", token=HF_TOKEN))
-    los_scaler = joblib.load(hf_hub_download(repo, "los_scaler.pkl", token=HF_TOKEN))
-
-    kmeans = joblib.load(hf_hub_download(repo, "kmeans_cluster_model.pkl", token=HF_TOKEN))
-    cluster_scaler = joblib.load(hf_hub_download(repo, "cluster_scaler_final.pkl", token=HF_TOKEN))
+    kmeans = joblib.load(hf_hub_download(REPO_ID, "kmeans_cluster_model.pkl", token=HF_TOKEN))
+    cluster_scaler = joblib.load(hf_hub_download(REPO_ID, "cluster_scaler_final.pkl", token=HF_TOKEN))
 
     xgb_model = xgb.Booster()
-    xgb_model.load_model(hf_hub_download(repo, "xgboost_disease_model.json", token=HF_TOKEN))
+    xgb_model.load_model(hf_hub_download(REPO_ID, "xgboost_disease_model.json", token=HF_TOKEN))
 
-    with open(hf_hub_download(repo, "association_rules.json", token=HF_TOKEN)) as f:
+    with open(hf_hub_download(REPO_ID, "association_rules.json", token=HF_TOKEN)) as f:
         association_rules = json.load(f)
 
     cnn_model = tf.keras.models.load_model(
-        hf_hub_download(repo, "pneumonia_cnn_model.h5", token=HF_TOKEN)
+        hf_hub_download(REPO_ID, "pneumonia_cnn_model.h5", token=HF_TOKEN)
     )
 
     return los_model, los_scaler, kmeans, cluster_scaler, xgb_model, association_rules, cnn_model
 
 
 los_model, los_scaler, kmeans, cluster_scaler, xgb_model, association_rules, cnn_model = load_models()
-
-# =========================================================
-# LANGUAGES (10)
-# =========================================================
-LANGUAGES = [
-    "English", "Tamil", "Hindi", "Telugu", "Malayalam",
-    "Kannada", "Bengali", "Spanish", "French", "German"
-]
 
 # =========================================================
 # TABS
@@ -76,7 +91,7 @@ tabs = st.tabs([
 ])
 
 # =========================================================
-# TAB 1 – DISEASE ASSESSMENT (12 FEATURES ONLY)
+# TAB 1 – DISEASE ASSESSMENT (EXACT 12 FEATURES)
 # =========================================================
 with tabs[0]:
     st.subheader("🩺 Disease Assessment")
@@ -94,10 +109,10 @@ with tabs[0]:
         submit = st.form_submit_button("Analyze")
 
     if submit:
-        # ----- Derived features (EXACT training logic) -----
+        # ---- DERIVED FEATURES (TRAINING LOGIC SAME) ----
         age_group = 0 if age < 30 else 1 if age < 45 else 2 if age < 60 else 3
         bmi_category = 0 if bmi < 18.5 else 1 if bmi < 25 else 2 if bmi < 30 else 3
-        bp_category = 0 if sbp < 120 and dbp < 80 else 1 if sbp < 140 or dbp < 90 else 2
+        bp_category = 0 if (sbp < 120 and dbp < 80) else 1 if (sbp < 140 or dbp < 90) else 2
         metabolic_risk = 1 if (bmi >= 30 or sugar >= 126 or chol >= 240) else 0
 
         df = pd.DataFrame([{
@@ -115,29 +130,47 @@ with tabs[0]:
             "metabolic_risk": metabolic_risk
         }])
 
-        # ----- Predictions -----
-        los_days = round(float(los_model.predict(los_scaler.transform(df))[0]), 2)
+        X = df[FEATURE_ORDER].values
 
-        cluster_id = int(kmeans.predict(cluster_scaler.transform(df))[0])
-        cluster_info = {
-            0: "Low Risk Cluster – Stable vitals, minimal intervention needed",
-            1: "Medium Risk Cluster – Moderate abnormalities, needs monitoring",
-            2: "High Risk Cluster – Critical indicators, immediate attention required"
+        # ---- PREDICTIONS ----
+        los_days = round(float(los_model.predict(los_scaler.transform(X))[0]), 2)
+
+        cluster_id = int(kmeans.predict(cluster_scaler.transform(X))[0])
+        cluster_text = {
+            0: "Low Risk Cluster – Stable vitals, minimal intervention",
+            1: "Medium Risk Cluster – Requires monitoring",
+            2: "High Risk Cluster – Critical condition, immediate care needed"
         }[cluster_id]
 
-        dmatrix = xgb.DMatrix(df)
-        disease_risk = ["LOW", "MEDIUM", "HIGH"][int(np.argmax(xgb_model.predict(dmatrix)))]
+        dmatrix = xgb.DMatrix(X)
+        probs = xgb_model.predict(dmatrix)[0]
+        disease_risk = ["LOW", "MEDIUM", "HIGH"][int(np.argmax(probs))]
 
-        # ----- Output -----
+        # ---- OUTPUT ----
         st.success(f"🕒 Predicted Length of Stay: {los_days} days")
-        st.info(f"🧩 Patient Cluster: {cluster_info}")
+        st.info(f"🧩 Patient Cluster: {cluster_text}")
         st.warning(f"⚠️ Disease Risk Level: {disease_risk}")
 
+        # ---- ASSOCIATION RULES (TABLE) ----
         st.subheader("📌 Medical Association Insights")
-        st.json(association_rules[:3])
+        assoc_df = pd.DataFrame(association_rules)
+        st.dataframe(assoc_df.head(5), use_container_width=True)
+
+        # ---- DOWNLOAD REPORT ----
+        report = df.copy()
+        report["predicted_los_days"] = los_days
+        report["cluster"] = cluster_text
+        report["disease_risk"] = disease_risk
+
+        st.download_button(
+            "⬇️ Download Clinical Report",
+            report.to_csv(index=False),
+            "clinical_report.csv",
+            "text/csv"
+        )
 
 # =========================================================
-# TAB 2 – X-RAY DETECTION (RESULT → RAG)
+# TAB 2 – X-RAY DETECTION → RAG
 # =========================================================
 with tabs[1]:
     st.subheader("🩻 X-ray Detection")
@@ -151,17 +184,17 @@ with tabs[1]:
         arr = np.expand_dims(arr, axis=0)
 
         pred = cnn_model.predict(arr)[0][0]
-        xray_result = "PNEUMONIA DETECTED" if pred > 0.5 else "NO PNEUMONIA DETECTED"
+        result = "PNEUMONIA DETECTED" if pred > 0.5 else "NO PNEUMONIA DETECTED"
 
-        st.success(f"X-ray Result: {xray_result}")
+        st.success(f"X-ray Result: {result}")
 
-        rag_prompt = f"""
-X-ray analysis result: {xray_result}.
-Explain possible symptoms and give a basic medical diagnosis.
+        prompt = f"""
+X-ray analysis result: {result}.
+Explain possible symptoms and give basic medical guidance.
 """
         res = client.chat.completions.create(
             model="llama-3.1-8b-instant",
-            messages=[{"role": "user", "content": rag_prompt}]
+            messages=[{"role": "user", "content": prompt}]
         )
         st.write(res.choices[0].message.content)
 
@@ -169,9 +202,9 @@ Explain possible symptoms and give a basic medical diagnosis.
 # TAB 3 – MEDICAL RAG (10 LANGUAGES)
 # =========================================================
 with tabs[2]:
-    st.subheader("💬 Medical RAG Chat")
+    st.subheader("💬 Medical RAG")
 
-    lang = st.selectbox("Select Language", LANGUAGES)
+    lang = st.selectbox("Language", LANGUAGES)
     q = st.text_input("Ask a medical question")
 
     if q:
@@ -188,7 +221,7 @@ with tabs[2]:
 # TAB 4 – SENTIMENT (10 LANGUAGES)
 # =========================================================
 with tabs[3]:
-    st.subheader("🧠 Clinical Sentiment Analysis")
+    st.subheader("🧠 Clinical Sentiment")
 
     lang = st.selectbox("Sentiment Language", LANGUAGES)
     txt = st.text_area("Clinical Notes")
@@ -228,12 +261,15 @@ with tabs[4]:
 with tabs[5]:
     st.write("""
 **HealthAI – Professional Clinical AI System**
-- Uses exact training features
-- Disease clustering with explanation
-- X-ray result → RAG reasoning
-- Multilingual Medical RAG, Sentiment & Translation
-- HuggingFace-hosted models
-- Groq-powered intelligence
+
+✔ Exact training features  
+✔ Correct disease risk prediction  
+✔ Cluster reasoning with explanation  
+✔ X-ray → RAG pipeline  
+✔ Multilingual RAG, Sentiment & Translation  
+✔ HuggingFace + Groq powered  
+✔ Deployment ready
 """)
+
 
 
