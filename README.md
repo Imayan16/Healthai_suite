@@ -26,7 +26,7 @@ Groq API - LLM Integration
 python-dotenv - Environment Management
 Installation
 Clone repository:
-git clone https://github.com/akashBv6680/HealthAI-Suite-Replica.git
+git clone https://github.com/Imayan16/Healthai_suite/edit/main/README.md
 cd HealthAI-Suite-Replica
 Create virtual environment:
 python -m venv venv
