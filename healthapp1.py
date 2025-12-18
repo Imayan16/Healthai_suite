@@ -43,24 +43,6 @@ LANGUAGES = [
     "Kannada","Bengali","Spanish","French","German"
 ]
 # =========================================================
-# MEDICAL KNOWLEDGE BASE (RAG)
-# =========================================================
-@st.cache_resource
-def load_medical_knowledge():
-    try:
-        with open("medical.txt", "r", encoding="utf-8") as f:
-            return f.read()
-    except FileNotFoundError:
-        return ""
-
-MEDICAL_KB = load_medical_knowledge()
-
-
-def is_rag_applicable(question, medical_text, threshold=2):
-    q_words = question.lower().split()
-    text = medical_text.lower()
-    hits = sum(1 for w in q_words if w in text)
-    return hits >= threshold
 
 # =========================================================
 # LOAD MODELS (HF)
@@ -87,6 +69,42 @@ def load_models():
 
 
 los_model, los_scaler, kmeans, cluster_scaler, xgb_model, association_rules, cnn_model = load_models()
+
+# =========================================================
+# MEDICAL KNOWLEDGE BASE (RAG)
+# =========================================================
+@st.cache_resource
+def load_medical_knowledge():
+    try:
+        with open("medical_knowledge.txt", "r", encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        return ""
+
+MEDICAL_KB = load_medical_knowledge()
+
+def is_rag_applicable(question):
+    q = question.lower()
+
+    disease_keywords = [
+        "diabetes", "diabetes mellitus",
+        "hypertension", "high blood pressure",
+        "heart disease", "coronary",
+        "pneumonia",
+        "kidney", "ckd"
+    ]
+
+    section_keywords = [
+        "symptom", "symptoms",
+        "diagnosis", "treatment",
+        "risk", "cause", "complication"
+    ]
+
+    disease_hit = any(d in q for d in disease_keywords)
+    section_hit = any(s in q for s in section_keywords)
+
+    return disease_hit and section_hit
+
 
 # =========================================================
 # TABS
@@ -224,7 +242,8 @@ with tabs[1]:
 
 # =========================================================
 # =========================================================
-# TAB 3 – MEDICAL RAG (KB → LLM FALLBACK)
+# =========================================================
+# TAB 3 – MEDICAL RAG (KB FIRST, LLM FALLBACK)
 # =========================================================
 with tabs[2]:
     st.subheader("💬 Medical RAG Chat")
@@ -233,49 +252,28 @@ with tabs[2]:
     q = st.text_input("Ask a medical question")
 
     if q:
-        use_rag = is_rag_applicable(q, MEDICAL_KB)
-
-        if use_rag and MEDICAL_KB.strip() != "":
+        if MEDICAL_KB and is_rag_applicable(q):
             prompt = f"""
-You are a clinical assistant.
-Answer STRICTLY using the medical knowledge below.
-If not found, say: "Not available in knowledge base".
+Answer STRICTLY using the following medical knowledge.
 
-Answer language: {lang}
-
-MEDICAL KNOWLEDGE:
 {MEDICAL_KB}
 
-QUESTION:
-{q}
+Question: {q}
+Answer in {lang}.
 """
+            source = "📘 Medical Knowledge Base (RAG)"
         else:
-            prompt = f"""
-You are a medical AI assistant.
-Answer safely and clearly.
+            prompt = f"Answer in {lang}: {q}"
+            source = "🤖 LLM Generated Response"
 
-Answer language: {lang}
+        res = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[{"role": "user", "content": prompt}]
+        )
 
-QUESTION:
-{q}
-"""
+        st.info(f"Answer Source: {source}")
+        st.write(res.choices[0].message.content)
 
-        with st.spinner("Thinking..."):
-            res = client.chat.completions.create(
-                model="llama-3.1-8b-instant",
-                messages=[{"role": "user", "content": prompt}]
-            )
-
-        answer = res.choices[0].message.content
-
-        # ===== SOURCE INDICATOR UI =====
-        if use_rag and MEDICAL_KB.strip() != "":
-            st.success("✅ Answer Source: Medical Knowledge Base (RAG)")
-        else:
-            st.info("🤖 Answer Source: LLM Generated Response")
-
-        st.markdown("### 🩺 Medical Answer")
-        st.write(answer)
 
 
 # =========================================================
@@ -318,6 +316,7 @@ with tabs[5]:
 ✔ Multilingual medical intelligence  
 ✔ Deployment ready
 """)
+
 
 
 
