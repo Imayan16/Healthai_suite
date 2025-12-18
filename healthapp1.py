@@ -42,6 +42,25 @@ LANGUAGES = [
     "English","Tamil","Hindi","Telugu","Malayalam",
     "Kannada","Bengali","Spanish","French","German"
 ]
+# =========================================================
+# MEDICAL KNOWLEDGE BASE (RAG)
+# =========================================================
+@st.cache_resource
+def load_medical_knowledge():
+    try:
+        with open("medical.txt", "r", encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        return ""
+
+MEDICAL_KB = load_medical_knowledge()
+
+
+def is_rag_applicable(question, medical_text, threshold=2):
+    q_words = question.lower().split()
+    text = medical_text.lower()
+    hits = sum(1 for w in q_words if w in text)
+    return hits >= threshold
 
 # =========================================================
 # LOAD MODELS (HF)
@@ -204,17 +223,60 @@ with tabs[1]:
         st.write(ans.choices[0].message.content)
 
 # =========================================================
-# TAB 3 – MEDICAL RAG
+# =========================================================
+# TAB 3 – MEDICAL RAG (KB → LLM FALLBACK)
 # =========================================================
 with tabs[2]:
-    lang = st.selectbox("Language",LANGUAGES,key="rag_lang")
+    st.subheader("💬 Medical RAG Chat")
+
+    lang = st.selectbox("Language", LANGUAGES, key="rag_lang")
     q = st.text_input("Ask a medical question")
+
     if q:
-        r = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
-            messages=[{"role":"user","content":f"Answer in {lang}: {q}"}]
-        )
-        st.write(r.choices[0].message.content)
+        use_rag = is_rag_applicable(q, MEDICAL_KB)
+
+        if use_rag and MEDICAL_KB.strip() != "":
+            prompt = f"""
+You are a clinical assistant.
+Answer STRICTLY using the medical knowledge below.
+If not found, say: "Not available in knowledge base".
+
+Answer language: {lang}
+
+MEDICAL KNOWLEDGE:
+{MEDICAL_KB}
+
+QUESTION:
+{q}
+"""
+        else:
+            prompt = f"""
+You are a medical AI assistant.
+Answer safely and clearly.
+
+Answer language: {lang}
+
+QUESTION:
+{q}
+"""
+
+        with st.spinner("Thinking..."):
+            res = client.chat.completions.create(
+                model="llama-3.1-8b-instant",
+                messages=[{"role": "user", "content": prompt}]
+            )
+
+        answer = res.choices[0].message.content
+
+        # ===== SOURCE INDICATOR UI =====
+        if use_rag and MEDICAL_KB.strip() != "":
+            st.success("✅ Answer Source: Medical Knowledge Base (RAG)")
+        else:
+            st.info("🤖 Answer Source: LLM Generated Response")
+
+        st.markdown("### 🩺 Medical Answer")
+        st.write(answer)
+
 
 # =========================================================
 # TAB 4 – SENTIMENT
@@ -256,6 +318,7 @@ with tabs[5]:
 ✔ Multilingual medical intelligence  
 ✔ Deployment ready
 """)
+
 
 
 
